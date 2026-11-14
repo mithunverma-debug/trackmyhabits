@@ -1,7 +1,7 @@
 """
-Database connection and session utilities for TrackMyHabits.
-Supports direct Supabase PostgreSQL connection via DATABASE_URL or psycopg2.
-Includes fallback mock/sqlite mode for isolated offline testing.
+Database connection and query execution utilities for TrackMyHabits.
+Fully compatible with Supabase PostgreSQL (Direct & Transaction Pooler port 6543)
+and serverless execution environments like Vercel.
 """
 import os
 import urllib.parse
@@ -9,18 +9,15 @@ from datetime import datetime, timezone
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# Primary DB connection string
-# Can be provided via DATABASE_URL or derived from Supabase project config
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 def get_db_connection():
     """
     Returns a psycopg2 connection configured with RealDictCursor.
+    Handles connection timeouts and clean disconnection for serverless functions.
     """
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        # Fallback or standard Supabase pooler/direct connection
-        # Supabase default host pattern: db.<ref>.supabase.co or aws-0-ap-south-1.pooler.supabase.com
         db_user = os.environ.get("DB_USER", "postgres")
         db_pass = os.environ.get("DB_PASSWORD", "")
         db_host = os.environ.get("DB_HOST", "db.qyexezkaasrvprbakhtw.supabase.co")
@@ -36,33 +33,44 @@ def get_db_connection():
     if not db_url:
         raise ValueError("DATABASE_URL or DB_PASSWORD environment variable is required to connect to Supabase.")
 
-    conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
-    conn.autocommit = False
+    # Connect with 10-second timeout, autocommit=False for transaction safety
+    conn = psycopg2.connect(
+        db_url,
+        cursor_factory=RealDictCursor,
+        connect_timeout=10
+    )
     return conn
 
-def execute_query(sql, params=None, fetch_all=True, fetch_one=False, commit=False):
+def execute_query(sql, params=None, fetch_all=False, fetch_one=False, commit=False):
     """
-    Helper to run a query safely with parameter binding and auto-cleanup.
+    Safely executes an SQL query and returns results appropriately:
+    - If fetch_one is True: fetches a single row only if cursor.description is present (has results)
+    - If fetch_all is True: fetches all rows only if cursor.description is present
+    - If neither fetch flag is set (e.g. UPDATE, DELETE, or INSERT without returning): returns rowcount
+    - Avoids 'ProgrammingError: no results to fetch' when executing non-SELECT/DML queries.
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(sql, params or ())
-            if commit:
-                conn.commit()
-                if fetch_one:
-                    return cur.fetchone()
-                if fetch_all:
-                    return cur.fetchall()
-                return cur.rowcount
-            else:
+            
+            # Check if this query returned a result set (e.g. SELECT, or INSERT/UPDATE with RETURNING)
+            has_results = cur.description is not None
+            
+            if has_results:
                 if fetch_one:
                     res = cur.fetchone()
                 elif fetch_all:
                     res = cur.fetchall()
                 else:
-                    res = None
-                return res
+                    res = cur.fetchall()
+            else:
+                res = cur.rowcount
+
+            if commit:
+                conn.commit()
+
+            return res
     except Exception as e:
         conn.rollback()
         raise e
