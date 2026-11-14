@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="toolbar">
+  <a class="btn" href="/admin">Overview</a>
+  <a class="btn btn-primary" href="/admin/users">Manage users</a>
+  <a class="btn" href="/admin/audit">Audit Logs</a>
+  <input class="input" id="q" type="search" placeholder="Search name or email…" aria-label="Search users" style="margin-left:auto">
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Habits</th>
+          <th>Goals</th>
+          <th>Joined (UTC)</th>
+          <th>Last login (UTC)</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="users">
+        <tr><td colspan="9" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="row" style="justify-content:space-between;margin-top:12px">
+    <span class="small muted" id="count"></span>
+    <div class="row">
+      <button class="btn btn-sm" id="prev">Previous</button>
+      <span class="small muted" id="page"></span>
+      <button class="btn btn-sm" id="next">Next</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/admin.js"></script>
+{% endblock %}

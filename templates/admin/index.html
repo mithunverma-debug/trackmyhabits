@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="toolbar">
+  <a class="btn btn-primary" href="/admin">Overview</a>
+  <a class="btn" href="/admin/users">Manage users</a>
+  <a class="btn" href="/admin/audit">Audit Logs</a>
+</div>
+
+<div class="grid grid-4" style="margin-bottom:16px">
+  {% for label, v in stats.items() %}
+  <div class="card stat">
+    <div class="label">{{ label }}</div>
+    <div class="value">{{ v }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Last 14 days <span class="muted small">(Registrations & Completions)</span></h2>
+  <div class="chart-box">
+    <canvas id="adminChart" data-chart='{{ chart_data|tojson }}'></canvas>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/admin.js"></script>
+{% endblock %}

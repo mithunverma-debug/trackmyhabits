@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Profile</span>
+    <h1>{{ user.full_name }}</h1>
+    <p>{{ user.email }}</p>
+  </div>
+</div>
+<div class="split">
+  <div class="stack">
+    <div class="card">
+      <h2>Account</h2>
+      <dl class="kv">
+        <dt>Name</dt><dd>{{ user.full_name }}</dd>
+        <dt>Email</dt><dd>{{ user.email }}</dd>
+        <dt>Role</dt><dd>{{ user.role|capitalize }}</dd>
+        <dt>Member since</dt><dd>{{ user.created_at.strftime('%d %b %Y, %H:%M') if user.created_at else '—' }}</dd>
+        <dt>Last login</dt><dd>{{ user.last_login_at.strftime('%d %b %Y, %H:%M') if user.last_login_at else '—' }}</dd>
+        <dt>Your data</dt><dd>{{ counts.habits }} habit(s) · {{ counts.goals }} goal(s) · {{ counts.logs }} completion(s)</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h2>Edit profile</h2>
+      <form data-api="profile/update.php" data-toast data-reload novalidate>
+        <div class="alert alert-error" role="alert" hidden></div>
+        <div class="form-group">
+          <label for="full_name">Full name</label>
+          <input class="input" id="full_name" name="full_name" maxlength="100" autocomplete="name" value="{{ user.full_name }}" required>
+          <div class="field-error" data-error="full_name"></div>
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input class="input" id="email" type="email" value="{{ user.email }}" disabled>
+          <div class="hint">Your email is your login and cannot be changed here.</div>
+        </div>
+        <button class="btn btn-primary" type="submit">Save changes</button>
+      </form>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Change password</h2>
+    <form data-api="profile/password.php" data-toast data-reset novalidate>
+      <div class="alert alert-error" role="alert" hidden></div>
+      <div class="form-group">
+        <label for="current_password">Current password</label>
+        <input class="input" type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+        <div class="field-error" data-error="current_password"></div>
+      </div>
+      <div class="form-group">
+        <label for="new_password">New password</label>
+        <input class="input" type="password" id="new_password" name="new_password" autocomplete="new-password" required>
+        <div class="hint">At least 8 characters, with letters and numbers.</div>
+        <div class="field-error" data-error="new_password"></div>
+      </div>
+      <div class="form-group">
+        <label for="confirm_password">Confirm new password</label>
+        <input class="input" type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+        <div class="field-error" data-error="confirm_password"></div>
+      </div>
+      <button class="btn btn-primary" type="submit">Update password</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

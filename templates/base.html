@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ session.get('theme', 'dark') }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="base-url" content="">
+  {% if current_user %}<meta name="logged-in" content="1">{% endif %}
+  <title>{{ page_title }} · TrackMyHabits</title>
+  <link rel="icon" type="image/svg+xml" href="/static/assets/images/favicon.svg">
+  <link rel="stylesheet" href="/static/assets/css/style.css">
+  <link rel="stylesheet" href="/static/assets/css/components.css">
+  <link rel="stylesheet" href="/static/assets/css/responsive.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+{% if layout == 'app' %}
+<div class="app">
+  <aside class="sidebar" aria-label="Sidebar">
+    <div>
+      <a class="side-brand" href="/dashboard">
+        <span class="brand-mark">⚡</span>
+        <span><span class="brand-name">TrackMyHabits</span><span class="brand-sub">HABITS &amp; GOALS</span></span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/dashboard" class="{{ 'active' if active_page == 'dashboard' else '' }}"><span class="nav-ico">📊</span><span>Dashboard</span></a>
+        <a href="/habits" class="{{ 'active' if active_page == 'habits' else '' }}"><span class="nav-ico">⚡</span><span>Habits</span></a>
+        <a href="/goals" class="{{ 'active' if active_page == 'goals' else '' }}"><span class="nav-ico">🎯</span><span>Goals</span></a>
+        <a href="/calendar" class="{{ 'active' if active_page == 'calendar' else '' }}"><span class="nav-ico">📅</span><span>Calendar</span></a>
+        <a href="/analytics" class="{{ 'active' if active_page == 'analytics' else '' }}"><span class="nav-ico">📈</span><span>Analytics</span></a>
+        <a href="/notifications" class="{{ 'active' if active_page == 'notifications' else '' }}">
+          <span class="nav-ico">🔔</span><span>Notifications</span>
+          {% if unread_count and unread_count > 0 %}<span class="nav-badge">{{ unread_count }}</span>{% endif %}
+        </a>
+        <a href="/profile" class="{{ 'active' if active_page == 'profile' else '' }}"><span class="nav-ico">👤</span><span>Profile</span></a>
+        <a href="/settings" class="{{ 'active' if active_page == 'settings' else '' }}"><span class="nav-ico">⚙️</span><span>Settings</span></a>
+        {% if current_user and current_user.role == 'admin' %}
+        <a href="/admin" class="{{ 'active' if active_page == 'admin' else '' }}"><span class="nav-ico">🛡️</span><span>Admin</span></a>
+        {% endif %}
+      </nav>
+    </div>
+    <div class="side-user">
+      <div>
+        <strong>{{ current_user.full_name }}
+          {% if current_user.role == 'admin' %}<span style="font-size:10px; background:#4f46e5; color:#fff; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:4px;">ADMIN</span>
+          {% elif current_user.role == 'guest' %}<span style="font-size:10px; background:#f59e0b; color:#000; padding:1px 6px; border-radius:4px; font-weight:700; margin-left:4px;">GUEST</span>{% endif %}
+        </strong>
+        <span>{{ current_user.email }}</span>
+      </div>
+      <a class="btn btn-sm btn-block" href="/logout">Log out</a>
+    </div>
+  </aside>
+  <div class="backdrop"></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost btn-sm menu-btn" data-menu-toggle aria-label="Open menu" type="button">☰</button>
+      <span class="muted small">{{ formatted_today }}</span>
+      <button class="btn btn-ghost btn-sm" data-theme-toggle aria-label="Toggle theme" type="button">🌓</button>
+    </header>
+    <main class="content">
+      {% if current_user and current_user.role == 'guest' %}
+      <div class="alert alert-info" role="status" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(79, 70, 229, 0.12); border: 1px solid rgba(79, 70, 229, 0.3); border-radius: 8px; padding: 12px 16px;">
+        <span>👁️ <strong>Guest Mode (Read-Only):</strong> You are exploring TrackMyHabits. <a href="/register" style="text-decoration: underline; font-weight: 600;">Create an account</a> to customize your habits!</span>
+        <a class="btn btn-sm btn-primary" href="/register">Register</a>
+      </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% else %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script src="/static/assets/js/app.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

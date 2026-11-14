@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Habits</span>
+    <h1>Manage your daily habits</h1>
+    <p>Track consistency, keep streaks alive and organise your routines.</p>
+  </div>
+  <button class="btn btn-primary" id="btn-new" type="button">+ New habit</button>
+</div>
+
+<div class="toolbar">
+  <input class="input" id="f-q" type="search" placeholder="Search habits…" aria-label="Search habits">
+  <select class="input" id="f-cat" aria-label="Category">
+    <option value="0">All categories</option>
+    {% for c in categories %}
+    <option value="{{ c.id }}">{{ c.name }}</option>
+    {% endfor %}
+  </select>
+  <select class="input" id="f-status" aria-label="Status">
+    <option value="all">All habits</option>
+    <option value="active">Active</option>
+    <option value="inactive">Paused</option>
+    <option value="archived">Archived</option>
+  </select>
+</div>
+
+<div id="habit-list" class="grid grid-3">
+  <div class="empty card" style="grid-column:1/-1">Loading your habits…</div>
+</div>
+
+<dialog id="habit-dialog" aria-labelledby="dlg-title">
+  <form id="habit-form" novalidate>
+    <div class="row" style="justify-content:space-between">
+      <h2 id="dlg-title">New habit</h2>
+      <button type="button" class="btn btn-ghost btn-sm" id="dlg-close-x" aria-label="Close">✕</button>
+    </div>
+    <div class="alert alert-error" role="alert" hidden></div>
+    <input type="hidden" name="id">
+    <div class="form-group">
+      <label for="h-name">Habit name</label>
+      <input class="input" id="h-name" name="name" maxlength="120" placeholder="e.g. Morning workout" required>
+      <div class="field-error" data-error="name"></div>
+    </div>
+    <div class="form-group">
+      <label for="h-desc">Notes (optional)</label>
+      <textarea class="input" id="h-desc" name="description" rows="2" maxlength="1000"></textarea>
+      <div class="field-error" data-error="description"></div>
+    </div>
+    <div class="input-row">
+      <div class="form-group">
+        <label for="h-cat">Category</label>
+        <select class="input" id="h-cat" name="category_id">
+          {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="field-error" data-error="category_id"></div>
+      </div>
+      <div class="form-group">
+        <label for="h-start">Start date</label>
+        <input class="input" type="date" id="h-start" name="start_date" required>
+        <div class="field-error" data-error="start_date"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Icon</label>
+      <div class="icon-picker">
+        {% for ic in habit_icons %}
+        <label class="pick">
+          <input type="radio" name="icon" value="{{ ic }}" {{ 'checked' if loop.first else '' }}>
+          <span title="{{ ic }}">⚡</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="field-error" data-error="icon"></div>
+    </div>
+    <div class="form-group">
+      <label>Colour</label>
+      <div class="color-picker">
+        {% for col in habit_colors %}
+        <label class="pick">
+          <input type="radio" name="color" value="{{ col }}" {{ 'checked' if loop.first else '' }}>
+          <span style="background:{{ col }}" title="{{ col }}"></span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="field-error" data-error="color"></div>
+    </div>
+    <div class="form-group">
+      <label for="h-type">Frequency</label>
+      <select class="input" id="h-type" name="schedule_type">
+        <option value="daily">Every day</option>
+        <option value="weekdays">Specific weekdays</option>
+        <option value="weekly_target">Target times per week</option>
+      </select>
+      <div class="field-error" data-error="schedule_type"></div>
+    </div>
+    <div class="form-group" id="g-weekdays" hidden>
+      <label>Which days?</label>
+      <div class="days">
+        {% for n, label in [(1,'Mon'),(2,'Tue'),(3,'Wed'),(4,'Thu'),(5,'Fri'),(6,'Sat'),(7,'Sun')] %}
+        <label class="pick">
+          <input type="checkbox" name="weekdays" value="{{ n }}">
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="field-error" data-error="weekdays"></div>
+    </div>
+    <div class="form-group" id="g-target" hidden>
+      <label for="h-target">Times per week (1–7)</label>
+      <input class="input" type="number" id="h-target" name="weekly_target" min="1" max="7" value="3">
+      <div class="field-error" data-error="weekly_target"></div>
+    </div>
+    <div class="form-group">
+      <label for="h-rem">Reminder time (optional)</label>
+      <input class="input" type="time" id="h-rem" name="reminder_time">
+      <div class="hint">You get an in-app reminder after this time if the habit is still not done.</div>
+      <div class="field-error" data-error="reminder_time"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="btn-cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save habit</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/habits.js"></script>
+{% endblock %}

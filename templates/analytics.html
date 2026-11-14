@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Analytics</span>
+    <h1>Your performance</h1>
+    <p>All numbers and charts are calculated live from your own habit and goal data.</p>
+  </div>
+</div>
+
+<div class="toolbar">
+  <select class="input" id="preset" aria-label="Date range">
+    <option value="7">Last 7 days</option>
+    <option value="30" selected>Last 30 days</option>
+    <option value="90">Last 90 days</option>
+    <option value="365">Last 12 months</option>
+    <option value="custom">Custom range…</option>
+  </select>
+  <input class="input" type="date" id="from" aria-label="From date" hidden>
+  <input class="input" type="date" id="to" aria-label="To date" hidden>
+  <button class="btn btn-primary" id="apply" type="button" hidden>Apply</button>
+</div>
+<div class="alert alert-error" id="alert" role="alert" hidden></div>
+
+<div class="grid grid-4 section-gap" id="summary"></div>
+
+<div class="split">
+  {% for cid, title, desc, size in [
+    ('daily', 'Daily completion', 'Percent of scheduled habits completed each day.', ''),
+    ('trend', 'Consistency trend', 'Rolling 7-day completion rate.', ''),
+    ('weekly', 'Weekly completion', 'Grouped by ISO week (Monday to Sunday).', ''),
+    ('monthly', 'Monthly completion', 'Grouped by calendar month.', ''),
+    ('habits', 'Habit performance', 'Done ÷ (done + missed) per habit in the selected range.', 'tall'),
+    ('goals', 'Goal progress', 'Progress towards each goal (paused goals are hidden).', 'tall')
+  ] %}
+  <div class="card">
+    <h2>{{ title }}</h2><p class="muted small">{{ desc }}</p>
+    <div class="chart-box {{ size }}"><canvas id="c-{{ cid }}"></canvas></div>
+    <div class="empty" id="e-{{ cid }}" hidden></div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/analytics.js"></script>
+{% endblock %}

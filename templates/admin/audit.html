@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="toolbar">
+  <a class="btn" href="/admin">Overview</a>
+  <a class="btn" href="/admin/users">Manage users</a>
+  <a class="btn btn-primary" href="/admin/audit">Audit Logs</a>
+</div>
+
+<div class="card">
+  <h2>Security & Audit Trail</h2>
+  <p class="muted small">All administrator logins, status modifications, role changes, and secure operations are recorded below.</p>
+  <div class="table-wrap" style="margin-top:16px">
+    <table>
+      <thead>
+        <tr>
+          <th>Time (UTC)</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Target</th>
+          <th>Details</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if not logs %}
+        <tr><td colspan="6" class="empty">No audit events recorded yet.</td></tr>
+        {% else %}
+        {% for log in logs %}
+        <tr>
+          <td class="small muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '' }}</td>
+          <td><strong>{{ log.actor_email or 'System' }}</strong></td>
+          <td><span class="badge badge-primary">{{ log.action }}</span></td>
+          <td>{{ log.target_type }} {% if log.target_id %}(#{{ log.target_id }}){% endif %}</td>
+          <td class="small">{{ log.details or '-' }}</td>
+          <td class="small muted">{{ log.ip_address or '-' }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

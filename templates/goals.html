@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Goals</span>
+    <h1>SMART goals</h1>
+    <p>Set a measurable target with a deadline and link the habits that will get you there.</p>
+  </div>
+  <button class="btn btn-primary" id="btn-new" type="button">+ New goal</button>
+</div>
+
+<div class="toolbar">
+  <input class="input" id="f-q" type="search" placeholder="Search goals…" aria-label="Search goals">
+  <select class="input" id="f-status" aria-label="Goal status">
+    <option value="all">All goals</option>
+    <option value="active">Active</option>
+    <option value="overdue">Overdue</option>
+    <option value="completed">Completed</option>
+    <option value="paused">Paused</option>
+  </select>
+</div>
+
+<div id="goal-list" class="grid grid-3">
+  <div class="empty card" style="grid-column:1/-1">Loading your goals…</div>
+</div>
+
+<dialog id="goal-dialog" aria-labelledby="dlg-title">
+  <form id="goal-form" novalidate>
+    <div class="row" style="justify-content:space-between">
+      <h2 id="dlg-title">New goal</h2>
+      <button type="button" class="btn btn-ghost btn-sm" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="alert alert-error" role="alert" hidden></div>
+    <input type="hidden" name="id">
+    <div class="form-group">
+      <label for="g-title">Goal title</label>
+      <input class="input" id="g-title" name="title" maxlength="150" placeholder="e.g. Run 50 km this month" required>
+      <div class="field-error" data-error="title"></div>
+    </div>
+    <div class="form-group">
+      <label for="g-spec">Specific objective (what exactly will you achieve?)</label>
+      <textarea class="input" id="g-spec" name="specific_objective" rows="2" maxlength="1000" required></textarea>
+      <div class="field-error" data-error="specific_objective"></div>
+    </div>
+    <div class="form-group">
+      <label for="g-desc">Notes (optional)</label>
+      <textarea class="input" id="g-desc" name="description" rows="2" maxlength="1000"></textarea>
+      <div class="field-error" data-error="description"></div>
+    </div>
+    <div class="input-row">
+      <div class="form-group">
+        <label for="g-target">Target value</label>
+        <input class="input" type="number" step="any" min="0" id="g-target" name="target_value" required>
+        <div class="field-error" data-error="target_value"></div>
+      </div>
+      <div class="form-group">
+        <label for="g-unit">Unit</label>
+        <input class="input" id="g-unit" name="unit" maxlength="30" placeholder="km, pages, sessions…" required>
+        <div class="field-error" data-error="unit"></div>
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="form-group">
+        <label for="g-cur">Progress so far</label>
+        <input class="input" type="number" step="any" min="0" id="g-cur" name="current_value" value="0">
+        <div class="field-error" data-error="current_value"></div>
+      </div>
+      <div class="form-group">
+        <label for="g-prio">Priority</label>
+        <select class="input" id="g-prio" name="priority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+        </select>
+        <div class="field-error" data-error="priority"></div>
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="form-group">
+        <label for="g-start">Start date</label>
+        <input class="input" type="date" id="g-start" name="start_date" required>
+        <div class="field-error" data-error="start_date"></div>
+      </div>
+      <div class="form-group">
+        <label for="g-dead">Deadline</label>
+        <input class="input" type="date" id="g-dead" name="deadline" required>
+        <div class="field-error" data-error="deadline"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="g-cat">Category (optional)</label>
+      <select class="input" id="g-cat" name="category_id">
+        <option value="0">No category</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="field-error" data-error="category_id"></div>
+    </div>
+    <div class="form-group">
+      <label>Linked habits (optional)</label>
+      {% if habits %}
+      <div class="check-list">
+        {% for h in habits %}
+        <label class="check-row">
+          <input type="checkbox" name="habit_ids" value="{{ h.id }}"> {{ h.name }}
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="hint">You have no habits yet. <a href="/habits?new=1">Create one</a> to link it here.</div>
+      {% endif %}
+      <div class="field-error" data-error="habit_ids"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save goal</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="prog-dialog" aria-labelledby="prog-title">
+  <form id="prog-form" novalidate>
+    <h2 id="prog-title">Update progress</h2>
+    <div class="alert alert-error" role="alert" hidden></div>
+    <input type="hidden" name="id">
+    <div class="form-group">
+      <label for="p-val" id="p-label">Current progress</label>
+      <input class="input" type="number" step="any" min="0" id="p-val" name="current_value" required>
+      <div class="field-error" data-error="current_value"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save progress</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/goals.js"></script>
+{% endblock %}

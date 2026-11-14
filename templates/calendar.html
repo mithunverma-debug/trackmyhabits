@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Calendar</span>
+    <h1>Your habit calendar</h1>
+    <p>Every dot is real data from your account. Click a day to review it, and toggle recent days with one tap.</p>
+  </div>
+</div>
+
+<div class="grid cal-layout">
+  <div class="card">
+    <div class="cal-head">
+      <button class="btn btn-sm" id="prev" type="button" aria-label="Previous month">◀</button>
+      <h2 id="month-title" style="margin:0;flex:1;text-align:center">&nbsp;</h2>
+      <button class="btn btn-sm" id="next" type="button" aria-label="Next month">▶</button>
+      <button class="btn btn-sm" id="today" type="button">Today</button>
+    </div>
+    <div class="cal-grid cal-dow" aria-hidden="true">
+      <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-legend small muted">
+      <span><i class="dot s-done"></i>Done</span>
+      <span><i class="dot s-missed"></i>Missed</span>
+      <span><i class="dot s-pending"></i>Due today</span>
+      <span><i class="dot s-upcoming"></i>Upcoming</span>
+    </div>
+    <p class="small muted" id="month-summary" style="margin:12px 0 0"></p>
+  </div>
+  <div class="card" id="day-panel">
+    <div class="empty">Select a day to see its details.</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/calendar.js"></script>
+{% endblock %}

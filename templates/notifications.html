@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Notifications</span>
+    <h1>Your notifications</h1>
+    <p>Reminders, goal deadlines and daily progress.</p>
+  </div>
+</div>
+<div class="toolbar">
+  <select class="input" id="filter" aria-label="Filter notifications">
+    <option value="all">All notifications</option>
+    <option value="unread">Unread only</option>
+  </select>
+  <button class="btn push" id="read-all" type="button">Mark all as read</button>
+  <button class="btn" id="del-read" type="button">Delete read</button>
+</div>
+<div class="card" id="list">
+  <div class="empty">Loading…</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/assets/js/notifications.js"></script>
+{% endblock %}
