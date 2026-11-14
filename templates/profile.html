@@ -16,7 +16,7 @@
         <dt>Name</dt><dd>{{ user.full_name }}</dd>
         <dt>Email</dt><dd>{{ user.email }}</dd>
         <dt>Role</dt><dd>{{ user.role|capitalize }}</dd>
-        <dt>Member since</dt><dd>{{ user.created_at.strftime('%d %b %Y, %H:%M') if user.created_at else '—' }}</dd>
+        <dt>Member since</dt><dd>{{ member_since }}</dd>
         <dt>Last login</dt><dd>{{ user.last_login_at.strftime('%d %b %Y, %H:%M') if user.last_login_at else '—' }}</dd>
         <dt>Your data</dt><dd>{{ counts.habits }} habit(s) · {{ counts.goals }} goal(s) · {{ counts.logs }} completion(s)</dd>
       </dl>

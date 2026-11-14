@@ -11,6 +11,17 @@
   <link rel="stylesheet" href="/static/assets/css/style.css">
   <link rel="stylesheet" href="/static/assets/css/components.css">
   <link rel="stylesheet" href="/static/assets/css/responsive.css">
+  <style>
+    @media (min-width: 768px) {
+      .menu-btn, button[data-menu-toggle] {
+        display: none !important;
+      }
+    }
+    .btn-primary {
+      color: #041318 !important;
+      font-weight: 600 !important;
+    }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -53,7 +64,7 @@
   <div class="backdrop"></div>
   <div class="main">
     <header class="topbar">
-      <button class="btn btn-ghost btn-sm menu-btn" data-menu-toggle aria-label="Open menu" type="button">☰</button>
+      <button class="btn btn-ghost btn-sm menu-btn md:hidden" data-menu-toggle aria-label="Open menu" type="button">☰</button>
       <span class="muted small">{{ formatted_today }}</span>
       <button class="btn btn-ghost btn-sm" data-theme-toggle aria-label="Toggle theme" type="button">🌓</button>
     </header>

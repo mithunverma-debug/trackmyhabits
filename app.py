@@ -40,7 +40,7 @@ def get_current_user():
         return None
     try:
         user = db.execute_query(
-            "SELECT id, full_name, email, role, is_active, last_login_at FROM users WHERE id = %s",
+            "SELECT id, full_name, email, role, is_active, created_at, last_login_at FROM users WHERE id = %s",
             (uid,), fetch_one=True
         )
         if not user or not user['is_active']:
@@ -350,12 +350,28 @@ def profile_page():
     nh = db.execute_query("SELECT COUNT(*) AS c FROM habits WHERE user_id = %s", (uid,), fetch_one=True)['c']
     ng = db.execute_query("SELECT COUNT(*) AS c FROM goals WHERE user_id = %s", (uid,), fetch_one=True)['c']
     nl = db.execute_query("SELECT COUNT(*) AS c FROM habit_logs WHERE user_id = %s", (uid,), fetch_one=True)['c']
+
+    # Format member_since with fallback to current date
+    created_at = u.get('created_at')
+    if created_at:
+        if hasattr(created_at, 'strftime'):
+            member_since = created_at.strftime('%d %b %Y')
+        else:
+            try:
+                dt = datetime.fromisoformat(str(created_at))
+                member_since = dt.strftime('%d %b %Y')
+            except Exception:
+                member_since = datetime.now().strftime('%d %b %Y')
+    else:
+        member_since = datetime.now().strftime('%d %b %Y')
+
     return render_template(
         'profile.html',
         layout='app',
         page_title='Profile',
         active_page='profile',
         user=u,
+        member_since=member_since,
         counts={'habits': nh, 'goals': ng, 'logs': nl}
     )
 
@@ -462,10 +478,35 @@ def get_req_data():
 @app.route('/api/habits/list.php', methods=['GET'])
 def api_habits_list():
     u = require_login()
-    habits = db.execute_query(
-        "SELECT h.*, c.name AS category_name FROM habits h JOIN habit_categories c ON c.id = h.category_id WHERE h.user_id = %s AND h.status <> 'archived' ORDER BY h.id DESC",
-        (u['id'],), fetch_all=True
-    ) or []
+    q = request.args.get('q', '').strip()
+    cat_id = request.args.get('category_id') or request.args.get('cat')
+    status = request.args.get('status') or 'all'
+
+    params = [u['id']]
+    where = "WHERE h.user_id = %s"
+
+    if status and status != 'all':
+        where += " AND h.status = %s"
+        params.append(status)
+    else:
+        where += " AND h.status <> 'archived'"
+
+    if cat_id and str(cat_id) != '0':
+        where += " AND h.category_id = %s"
+        params.append(int(cat_id))
+
+    if q:
+        where += " AND (h.name ILIKE %s OR h.description ILIKE %s)"
+        params.extend([f"%{q}%", f"%{q}%"])
+
+    sql = f"""
+    SELECT h.*, c.name AS category_name
+    FROM habits h
+    JOIN habit_categories c ON c.id = h.category_id
+    {where}
+    ORDER BY h.id DESC
+    """
+    habits = db.execute_query(sql, tuple(params), fetch_all=True) or []
     enriched = repos.enrich_habits(u['id'], habits, get_today_local())
     return jsonify({'success': True, 'habits': enriched})
 
@@ -558,8 +599,29 @@ def api_habits_delete():
 @app.route('/api/goals/list.php', methods=['GET'])
 def api_goals_list():
     u = require_login()
-    goals = db.execute_query("SELECT * FROM goals WHERE user_id = %s ORDER BY deadline ASC", (u['id'],), fetch_all=True) or []
+    q = request.args.get('q', '').strip()
+    status = request.args.get('status') or 'all'
+
+    params = [u['id']]
+    where = "WHERE user_id = %s"
+
+    if status and status != 'all':
+        if status in ['active', 'completed', 'paused']:
+            where += " AND status = %s"
+            params.append(status)
+
+    if q:
+        where += " AND (title ILIKE %s OR specific_objective ILIKE %s OR description ILIKE %s)"
+        params.extend([f"%{q}%", f"%{q}%", f"%{q}%"])
+
+    sql = f"SELECT * FROM goals {where} ORDER BY deadline ASC"
+    goals = db.execute_query(sql, tuple(params), fetch_all=True) or []
     enriched = repos.enrich_goals(u['id'], goals, get_today_local())
+
+    # Handle computed overdue status filter if requested
+    if status == 'overdue':
+        enriched = [g for g in enriched if g.get('display_status') == 'overdue']
+
     return jsonify({'success': True, 'goals': enriched})
 
 @app.route('/api/goals/save.php', methods=['POST'])
