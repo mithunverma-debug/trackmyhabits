@@ -2,11 +2,11 @@
    Component styles live in components.css; breakpoints in responsive.css. */
 :root {
   color-scheme: dark;
-  --bg:#070913; --surface:#0f1424; --surface-2:#182039; --border:#252e4b;
-  --text:#e8ecf8; --muted:#97a1c0;
-  --primary:#3b6cf6; --primary-hover:#5a82f8; --primary-soft:rgba(91,140,255,.16); --primary-text:#8aa9ff;
-  --secondary:#0ea5e9; --accent:#fb923c;
-  --success:#34d399; --success-soft:rgba(52,211,153,.14);
+  --bg:#04090c; --surface:#071318; --surface-2:#0b1920; --border:#142d38;
+  --text:#f0fdfa; --muted:#829b9e;
+  --primary:#10b981; --primary-hover:#059669; --primary-soft:rgba(16,185,129,.16); --primary-text:#34d399;
+  --secondary:#14b8a6; --accent:#f59e0b;
+  --success:#10b981; --success-soft:rgba(16,185,129,.14);
   --warning:#fbbf24; --warning-soft:rgba(251,191,36,.14);
   --error:#f87171;   --error-soft:rgba(248,113,113,.14);
   --radius:16px; --radius-sm:10px; --radius-lg:22px;
@@ -17,14 +17,14 @@
 }
 html[data-theme="light"] {
   color-scheme: light;
-  --bg:#f3f5fb; --surface:#ffffff; --surface-2:#eef1f9; --border:#dbe1ef;
-  --text:#141a2e; --muted:#58628a;
-  --primary:#3d4fd8; --primary-hover:#3140b8; --primary-soft:#e6e9fd; --primary-text:#3a47c4;
-  --secondary:#0284c7; --accent:#ea580c;
-  --success:#15803d; --success-soft:#dcf5e5;
-  --warning:#a16207; --warning-soft:#fdf0cf;
-  --error:#c62828;   --error-soft:#fde4e4;
-  --shadow-sm:0 1px 2px rgba(20,26,46,.08); --shadow:0 12px 32px rgba(20,26,46,.14);
+  --bg:#f0fdf9; --surface:#ffffff; --surface-2:#e6f7f2; --border:#c7e8df;
+  --text:#062321; --muted:#4a6964;
+  --primary:#0d9488; --primary-hover:#0f766e; --primary-soft:#ccfbf1; --primary-text:#0f766e;
+  --secondary:#059669; --accent:#d97706;
+  --success:#10b981; --success-soft:#dcfce7;
+  --warning:#b45309; --warning-soft:#fef3c7;
+  --error:#dc2626;   --error-soft:#fee2e2;
+  --shadow-sm:0 1px 2px rgba(6,35,33,.08); --shadow:0 12px 32px rgba(6,35,33,.14);
 }
 
 *, *::before, *::after { box-sizing:border-box; }

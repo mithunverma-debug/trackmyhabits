@@ -56,10 +56,10 @@ def test_flask_app_routes():
     app.config['TESTING'] = True
     client = app.test_client()
 
-    # Home redirects to login
+    # Home renders public landing page
     res = client.get('/', follow_redirects=False)
-    assert res.status_code == 302
-    assert '/login' in res.location
+    assert res.status_code == 200
+    assert b"TrackMyHabits" in res.data
 
     # Login page loads
     res_login = client.get('/login')
