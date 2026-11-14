@@ -394,41 +394,60 @@ def settings_page():
 @app.route('/admin')
 def admin_overview():
     require_admin()
-    one = lambda q: db.execute_query(q, fetch_one=True)['c']
+    def get_count(sql, params=None):
+        try:
+            res = db.execute_query(sql, params, fetch_one=True)
+            if res:
+                # Handle dictionary keys irrespective of casing or column name
+                if 'c' in res:
+                    return int(res['c'] or 0)
+                # Return first value if dict
+                for val in res.values():
+                    return int(val or 0)
+            return 0
+        except Exception:
+            return 0
+
     stats = {
-        'Registered users': one("SELECT COUNT(*) AS c FROM users WHERE role = 'user'"),
-        'Active accounts': one("SELECT COUNT(*) AS c FROM users WHERE role = 'user' AND is_active = TRUE"),
-        'Deactivated accounts': one("SELECT COUNT(*) AS c FROM users WHERE role = 'user' AND is_active = FALSE"),
-        'Total habits': one("SELECT COUNT(*) AS c FROM habits"),
-        'Total goals': one("SELECT COUNT(*) AS c FROM goals"),
-        'Completions logged': one("SELECT COUNT(*) AS c FROM habit_logs"),
-        'Completed goals': one("SELECT COUNT(*) AS c FROM goals WHERE status = 'completed'")
+        'Total users': get_count("SELECT COUNT(*) AS c FROM users"),
+        'Active accounts': get_count("SELECT COUNT(*) AS c FROM users WHERE is_active = TRUE"),
+        'Deactivated accounts': get_count("SELECT COUNT(*) AS c FROM users WHERE is_active = FALSE"),
+        'Total habits': get_count("SELECT COUNT(*) AS c FROM habits"),
+        'Total goals': get_count("SELECT COUNT(*) AS c FROM goals"),
+        'Completions logged': get_count("SELECT COUNT(*) AS c FROM habit_logs"),
+        'Completed goals': get_count("SELECT COUNT(*) AS c FROM goals WHERE status = 'completed'")
     }
 
-    # 14-day trends
+    # 14-day trends (PostgreSQL CURRENT_DATE / date_trunc compatible)
     today = datetime.now(timezone.utc).date()
     days_map = {}
     for i in range(13, -1, -1):
         d_str = (today - timedelta(days=i)).strftime('%Y-%m-%d')
         days_map[d_str] = {'users': 0, 'logs': 0}
 
-    u_rows = db.execute_query(
-        "SELECT DATE(created_at) AS d, COUNT(*) AS c FROM users WHERE created_at >= (CURRENT_TIMESTAMP - INTERVAL '14 days') GROUP BY d",
-        fetch_all=True
-    ) or []
-    for r in u_rows:
-        ds = str(r['d'])
-        if ds in days_map:
-            days_map[ds]['users'] = int(r['c'])
+    try:
+        u_rows = db.execute_query(
+            "SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS d, COUNT(*)::int AS c FROM users WHERE created_at >= (CURRENT_DATE - INTERVAL '14 days') GROUP BY 1",
+            fetch_all=True
+        ) or []
+        for r in u_rows:
+            ds = str(r['d']).strip()[:10]
+            if ds in days_map:
+                days_map[ds]['users'] = int(r['c'])
+    except Exception:
+        pass
 
-    l_rows = db.execute_query(
-        "SELECT DATE(completed_at) AS d, COUNT(*) AS c FROM habit_logs WHERE completed_at >= (CURRENT_TIMESTAMP - INTERVAL '14 days') GROUP BY d",
-        fetch_all=True
-    ) or []
-    for r in l_rows:
-        ds = str(r['d'])
-        if ds in days_map:
-            days_map[ds]['logs'] = int(r['c'])
+    try:
+        l_rows = db.execute_query(
+            "SELECT to_char(date_trunc('day', completed_at), 'YYYY-MM-DD') AS d, COUNT(*)::int AS c FROM habit_logs WHERE completed_at >= (CURRENT_DATE - INTERVAL '14 days') GROUP BY 1",
+            fetch_all=True
+        ) or []
+        for r in l_rows:
+            ds = str(r['d']).strip()[:10]
+            if ds in days_map:
+                days_map[ds]['logs'] = int(r['c'])
+    except Exception:
+        pass
 
     chart_data = {
         'labels': list(days_map.keys()),
@@ -872,12 +891,19 @@ def api_admin_users():
         params.extend([f"%{q}%", f"%{q}%"])
 
     count_res = db.execute_query(f"SELECT COUNT(*) AS c FROM users {where}", tuple(params), fetch_one=True)
-    total = count_res['c'] if count_res else 0
+    total = 0
+    if count_res:
+        if 'c' in count_res:
+            total = int(count_res['c'] or 0)
+        else:
+            for v in count_res.values():
+                total = int(v or 0)
+                break
 
     sql = f"""
     SELECT u.id, u.full_name, u.email, u.role, u.is_active, u.created_at, u.last_login_at,
-           COUNT(DISTINCT h.id) AS habits_count,
-           COUNT(DISTINCT g.id) AS goals_count
+           COUNT(DISTINCT h.id) AS habits,
+           COUNT(DISTINCT g.id) AS goals
     FROM users u
     LEFT JOIN habits h ON h.user_id = u.id
     LEFT JOIN goals g ON g.user_id = u.id
@@ -889,12 +915,22 @@ def api_admin_users():
     params.extend([per_page, offset])
     users = db.execute_query(sql, tuple(params), fetch_all=True) or []
 
+    # Format dates safely for JSON
+    formatted_users = []
+    for u in users:
+        item = dict(u)
+        c_at = item.get('created_at')
+        l_at = item.get('last_login_at')
+        item['created_at'] = c_at.isoformat() if hasattr(c_at, 'isoformat') else (str(c_at) if c_at else '')
+        item['last_login_at'] = l_at.isoformat() if hasattr(l_at, 'isoformat') else (str(l_at) if l_at else '')
+        formatted_users.append(item)
+
     return jsonify({
         'success': True,
-        'users': users,
+        'users': formatted_users,
         'total': total,
         'page': page,
-        'pages': (total + per_page - 1) // per_page
+        'pages': max(1, (total + per_page - 1) // per_page)
     })
 
 @app.route('/api/admin/user_status.php', methods=['POST'])
