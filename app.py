@@ -496,38 +496,49 @@ def get_req_data():
 # Habits API
 @app.route('/api/habits/list.php', methods=['GET'])
 def api_habits_list():
-    u = require_login()
-    q = request.args.get('q', '').strip()
-    cat_id = request.args.get('category_id') or request.args.get('cat')
-    status = request.args.get('status') or 'all'
+    try:
+        u = require_login()
+        q = request.args.get('q', '').strip()
+        cat_id = request.args.get('category_id') or request.args.get('cat')
+        status = request.args.get('status') or 'all'
 
-    params = [u['id']]
-    where = "WHERE h.user_id = %s"
+        params = [u['id']]
+        where = "WHERE h.user_id = %s"
 
-    if status and status != 'all':
-        where += " AND h.status = %s"
-        params.append(status)
-    else:
-        where += " AND h.status <> 'archived'"
+        if status and status != 'all':
+            where += " AND h.status = %s"
+            params.append(status)
+        else:
+            where += " AND h.status <> 'archived'"
 
-    if cat_id and str(cat_id) != '0':
-        where += " AND h.category_id = %s"
-        params.append(int(cat_id))
+        if cat_id and str(cat_id) != '0':
+            where += " AND h.category_id = %s"
+            params.append(int(cat_id))
 
-    if q:
-        where += " AND (h.name ILIKE %s OR h.description ILIKE %s)"
-        params.extend([f"%{q}%", f"%{q}%"])
+        if q:
+            where += " AND (h.name ILIKE %s OR h.description ILIKE %s)"
+            params.extend([f"%{q}%", f"%{q}%"])
 
-    sql = f"""
-    SELECT h.*, c.name AS category_name
-    FROM habits h
-    JOIN habit_categories c ON c.id = h.category_id
-    {where}
-    ORDER BY h.id DESC
-    """
-    habits = db.execute_query(sql, tuple(params), fetch_all=True) or []
-    enriched = repos.enrich_habits(u['id'], habits, get_today_local())
-    return jsonify({'success': True, 'habits': enriched})
+        sql = f"""
+        SELECT h.*, COALESCE(c.name, 'General') AS category_name
+        FROM habits h
+        LEFT JOIN habit_categories c ON c.id = h.category_id
+        {where}
+        ORDER BY h.id DESC
+        """
+        habits = db.execute_query(sql, tuple(params), fetch_all=True) or []
+        enriched = repos.enrich_habits(u['id'], habits, get_today_local())
+
+        for item in enriched:
+            for k, v in list(item.items()):
+                if hasattr(v, 'isoformat'):
+                    item[k] = v.isoformat()
+
+        return jsonify({'success': True, 'habits': enriched})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/habits/toggle.php', methods=['POST'])
 def api_habits_toggle():
