@@ -7,7 +7,7 @@
 
   async function load() {
     const qs = new URLSearchParams({ q: $('#f-q').value, status: $('#f-status').value });
-    const { ok, data } = await TMH.api('goals/list.php?' + qs, null, 'GET');
+    const { ok, data } = await TMH.api('goals/list?' + qs, null, 'GET');
     if (!ok) { list.innerHTML = `<div class="empty">${TMH.esc(data.message || 'Could not load goals.')}</div>`; return; }
     goals = data.goals;
     if (!goals.length) {
@@ -45,13 +45,13 @@
       $('#p-label').textContent = `Current progress (${g.unit}) — target ${fmt(g.target_value)}`; return pd.showModal();
     }
     if (act === 'delete') { if (!confirm('Delete this goal? Linked habits are kept.')) return;
-      const r = await TMH.api('goals/delete.php', { id }); TMH.toast(r.data.message, r.ok ? '' : 'error'); return load(); }
+      const r = await TMH.api('goals/delete', { id }); TMH.toast(r.data.message, r.ok ? '' : 'error'); return load(); }
     let body = { id, action: act };
     if (act === 'complete' && g.current_value < g.target_value) {
       if (!confirm('You have not reached the target yet. Mark this goal as completed anyway?')) return;
       body.confirm = true;
     }
-    b.disabled = true; const r = await TMH.api('goals/state.php', body);
+    b.disabled = true; const r = await TMH.api('goals/state', body);
     TMH.toast(r.data.message, r.ok ? '' : 'error'); load();
   });
 
@@ -75,13 +75,13 @@
     const body = { id: gf.elements.id.value || 0 };
     ['title', 'specific_objective', 'description', 'target_value', 'current_value', 'unit', 'start_date', 'deadline', 'category_id', 'priority'].forEach(k => body[k] = gf.elements[k].value);
     body.habit_ids = [...gf.querySelectorAll('input[name=habit_ids]:checked')].map(c => +c.value);
-    const { ok, data } = await TMH.api('goals/save.php', body); btn.disabled = false;
+    const { ok, data } = await TMH.api('goals/save', body); btn.disabled = false;
     if (ok) { gd.close(); TMH.toast(data.message); load(); }
     else { TMH.showErrors(gf, data.errors); const a = gf.querySelector('.alert'); a.textContent = data.message; a.hidden = false; }
   });
   pf.addEventListener('submit', async e => {
     e.preventDefault(); const btn = pf.querySelector('[type=submit]'); btn.disabled = true;
-    const { ok, data } = await TMH.api('goals/progress.php', { id: +pf.elements.id.value, current_value: pf.current_value.value }); btn.disabled = false;
+    const { ok, data } = await TMH.api('goals/progress', { id: +pf.elements.id.value, current_value: pf.current_value.value }); btn.disabled = false;
     if (ok) { pd.close(); TMH.toast(data.message); load(); } else { TMH.showErrors(pf, data.errors); const a = pf.querySelector('.alert'); a.textContent = data.message; a.hidden = false; }
   });
 

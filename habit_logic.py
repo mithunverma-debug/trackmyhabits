@@ -195,3 +195,23 @@ def hl_activity_streaks(dates_list, today):
         check -= timedelta(days=1)
 
     return {'current': cur, 'longest': longest}
+
+def hl_range_stats(habit, weekdays, logs_set, today, from_date, to_date):
+    """
+    Done/missed counts for periods that overlap [from_date, to_date].
+    Pending periods are ignored.
+    Faithful port of PHP hl_range_stats.
+    """
+    done = 0
+    missed = 0
+    periods = hl_periods(habit, weekdays, logs_set, today)
+    for p in periods:
+        if p['end'] < from_date or p['start'] > to_date:
+            continue
+        if p['status'] == 'done':
+            done += 1
+        elif p['status'] == 'missed':
+            missed += 1
+    den = done + missed
+    rate = round(done / den * 100, 1) if den > 0 else None
+    return {'done': done, 'missed': missed, 'rate': rate}

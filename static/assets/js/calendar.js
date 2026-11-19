@@ -5,7 +5,7 @@
   let y, m, today = null, selected = null, days = {};
 
   async function loadMonth() {
-    const { ok, data } = await TMH.api(`calendar/month.php?year=${y}&month=${m}`, null, 'GET');
+    const { ok, data } = await TMH.api(`calendar/month?year=${y}&month=${m}`, null, 'GET');
     if (!ok) { TMH.toast(data.message || 'Could not load calendar.', 'error'); return; }
     days = data.days; today = data.today; renderGrid();
     const s = data.summary;
@@ -27,7 +27,7 @@
 
   async function showDay(date) {
     selected = date; renderGrid(); const panel = $('#day-panel'); panel.innerHTML = '<div class="empty">Loading…</div>';
-    const { ok, data } = await TMH.api('calendar/day.php?date=' + date, null, 'GET');
+    const { ok, data } = await TMH.api('calendar/day?date=' + date, null, 'GET');
     if (!ok) { panel.innerHTML = `<div class="empty">${TMH.esc(data.message)}</div>`; return; }
     const pretty = new Date(date + 'T00:00:00Z').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     const badge = { done: 'badge-success', missed: 'badge-error', pending: 'badge-warning', upcoming: '' };
@@ -44,7 +44,7 @@
     panel.innerHTML = h; TMH.initIcons();
     panel.querySelectorAll('button[data-habit]').forEach(b => b.addEventListener('click', async () => {
       b.disabled = true;
-      const r = await TMH.api('habits/toggle.php', { habit_id: +b.dataset.habit, date, completed: b.dataset.done !== '1' });
+      const r = await TMH.api('habits/toggle', { habit_id: +b.dataset.habit, date, completed: b.dataset.done !== '1' });
       if (!r.ok) TMH.toast(r.data.message, 'error'); await loadMonth(); showDay(date);
     }));
   }

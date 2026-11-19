@@ -65,3 +65,23 @@ def test_flask_app_routes():
     res_login = client.get('/login')
     assert res_login.status_code == 200
     assert b"Sign In - TrackMyHabits" in res_login.data
+
+def test_habit_range_stats():
+    habit = {
+        'start_date': '2026-11-01',
+        'schedule_type': 'daily',
+        'status': 'active'
+    }
+    weekdays = []
+    logs = {'2026-11-01', '2026-11-02'}
+    today = '2026-11-05'
+    # From 2026-11-01 to 2026-11-04:
+    # 2026-11-01: done
+    # 2026-11-02: done
+    # 2026-11-03: missed
+    # 2026-11-04: missed
+    res = habit_logic.hl_range_stats(habit, weekdays, logs, today, '2026-11-01', '2026-11-04')
+    assert res['done'] == 2
+    assert res['missed'] == 2
+    assert res['rate'] == 50.0
+

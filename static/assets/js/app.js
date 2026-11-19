@@ -10,7 +10,7 @@ const TMH = {
     try {
       const res = await fetch(TMH.base + '/api/' + path, opts);
       const data = await res.json().catch(() => ({ success: false, message: 'Unexpected server response.' }));
-      if (res.status === 401 && !location.pathname.endsWith('login.php')) location.href = TMH.base + '/login.php';
+      if (res.status === 401 && !location.pathname.endsWith('/login') && !location.pathname.endsWith('login.php')) location.href = TMH.base + '/login';
       return { ok: res.ok && data.success, status: res.status, data };
     } catch (err) {
       return { ok: false, status: 0, data: { success: false, message: 'Network error. Is Apache running?' } };
@@ -74,7 +74,7 @@ document.querySelectorAll('form[data-api]').forEach(form => {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = next; TMH.syncThemeButtons();
     try { localStorage.setItem('tmh-theme', next); } catch (e) {}
-    if (loggedIn) TMH.api('settings/theme.php', { theme: next }); // saved to the account
+    if (loggedIn) TMH.api('settings/theme', { theme: next }); // saved to the account
   }));
   const menu = document.querySelector('[data-menu-toggle]');
   if (menu) {

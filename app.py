@@ -54,9 +54,17 @@ def get_user_timezone():
     return session.get('timezone', 'Asia/Kolkata')
 
 def get_today_local():
-    # User's local date
-    # In a full deployment, pytz or zoneinfo can be used; standard default here
-    return datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    tz_name = get_user_timezone()
+    if tz_name in ('Asia/Kolkata', 'IST', 'Asia/Calcutta'):
+        # UTC+5:30
+        return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).strftime('%Y-%m-%d')
+    try:
+        import zoneinfo
+        tz = zoneinfo.ZoneInfo(tz_name)
+        return datetime.now(tz).strftime('%Y-%m-%d')
+    except Exception:
+        # Fallback to IST if in Asia/Calcutta or UTC
+        return (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).strftime('%Y-%m-%d')
 
 @app.context_processor
 def inject_global_vars():
@@ -494,6 +502,7 @@ def get_req_data():
     return request.form.to_dict()
 
 # Habits API
+@app.route('/api/habits/list', methods=['GET'])
 @app.route('/api/habits/list.php', methods=['GET'])
 def api_habits_list():
     try:
@@ -540,6 +549,7 @@ def api_habits_list():
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/api/habits/toggle', methods=['POST'])
 @app.route('/api/habits/toggle.php', methods=['POST'])
 def api_habits_toggle():
     u = require_login()
@@ -565,6 +575,7 @@ def api_habits_toggle():
 
     return jsonify({'success': True, 'done': is_done, 'log_date': log_date})
 
+@app.route('/api/habits/save', methods=['POST'])
 @app.route('/api/habits/save.php', methods=['POST'])
 def api_habits_save():
     u = require_login()
@@ -615,6 +626,24 @@ def api_habits_save():
 
     return jsonify({'success': True, 'id': habit_id})
 
+@app.route('/api/habits/status', methods=['POST'])
+@app.route('/api/habits/status.php', methods=['POST'])
+def api_habits_status():
+    u = require_login()
+    if u['role'] == 'guest':
+        return jsonify({'success': False, 'message': 'Guest mode is read-only.'}), 403
+    data = get_req_data()
+    hid = data.get('id')
+    status = data.get('status')
+    if status not in ('active', 'inactive', 'archived'):
+        return jsonify({'success': False, 'message': 'Invalid status.'}), 422
+    habit = db.execute_query("SELECT id FROM habits WHERE id = %s AND user_id = %s", (hid, u['id']), fetch_one=True)
+    if not habit:
+        return jsonify({'success': False, 'message': 'Habit not found.'}), 404
+    db.execute_query("UPDATE habits SET status = %s WHERE id = %s AND user_id = %s", (status, hid, u['id']), commit=True)
+    return jsonify({'success': True, 'message': 'Habit updated.'})
+
+@app.route('/api/habits/delete', methods=['POST'])
 @app.route('/api/habits/delete.php', methods=['POST'])
 def api_habits_delete():
     u = require_login()
@@ -626,6 +655,7 @@ def api_habits_delete():
     return jsonify({'success': True})
 
 # Goals API
+@app.route('/api/goals/list', methods=['GET'])
 @app.route('/api/goals/list.php', methods=['GET'])
 def api_goals_list():
     u = require_login()
@@ -654,6 +684,7 @@ def api_goals_list():
 
     return jsonify({'success': True, 'goals': enriched})
 
+@app.route('/api/goals/save', methods=['POST'])
 @app.route('/api/goals/save.php', methods=['POST'])
 def api_goals_save():
     u = require_login()
@@ -704,6 +735,7 @@ def api_goals_save():
 
     return jsonify({'success': True, 'id': goal_id})
 
+@app.route('/api/goals/progress', methods=['POST'])
 @app.route('/api/goals/progress.php', methods=['POST'])
 def api_goals_progress():
     u = require_login()
@@ -726,6 +758,40 @@ def api_goals_progress():
     )
     return jsonify({'success': True, 'status': status, 'current_value': val})
 
+@app.route('/api/goals/state', methods=['POST'])
+@app.route('/api/goals/state.php', methods=['POST'])
+def api_goals_state():
+    u = require_login()
+    if u['role'] == 'guest':
+        return jsonify({'success': False, 'message': 'Guest mode is read-only.'}), 403
+    data = get_req_data()
+    gid = data.get('id')
+    action = data.get('action')
+    g = db.execute_query("SELECT * FROM goals WHERE id = %s AND user_id = %s", (gid, u['id']), fetch_one=True)
+    if not g:
+        return jsonify({'success': False, 'message': 'Goal not found.'}), 404
+
+    if action == 'complete':
+        cur_v = float(g.get('current_value') or 0)
+        tar_v = float(g.get('target_value') or 0)
+        if cur_v < tar_v and not data.get('confirm'):
+            return jsonify({'success': False, 'message': 'Target not reached yet. Please confirm to complete anyway.'}), 422
+        now_dt = datetime.now(timezone.utc)
+        db.execute_query("UPDATE goals SET status = 'completed', completed_at = %s, updated_at = %s WHERE id = %s AND user_id = %s", (now_dt, now_dt, gid, u['id']), commit=True)
+        repos.add_notification(u['id'], 'goal_completed', f"Goal achieved: {g['title']}", f"Congratulations! You completed '{g['title']}'.", f"/goals", f"goal_completed_{gid}")
+        return jsonify({'success': True, 'message': 'Goal completed.'})
+    elif action in ('reopen', 'resume'):
+        db.execute_query("UPDATE goals SET status = 'active', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s", (gid, u['id']), commit=True)
+        return jsonify({'success': True, 'message': 'Goal is active again.'})
+    elif action == 'pause':
+        if g['status'] != 'active':
+            return jsonify({'success': False, 'message': 'Only active goals can be paused.'}), 422
+        db.execute_query("UPDATE goals SET status = 'paused', updated_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s", (gid, u['id']), commit=True)
+        return jsonify({'success': True, 'message': 'Goal paused.'})
+    else:
+        return jsonify({'success': False, 'message': 'Invalid action.'}), 422
+
+@app.route('/api/goals/delete', methods=['POST'])
 @app.route('/api/goals/delete.php', methods=['POST'])
 def api_goals_delete():
     u = require_login()
@@ -737,6 +803,7 @@ def api_goals_delete():
     return jsonify({'success': True})
 
 # Calendar API
+@app.route('/api/calendar/month', methods=['GET'])
 @app.route('/api/calendar/month.php', methods=['GET'])
 def api_calendar_month():
     u = require_login()
@@ -747,6 +814,7 @@ def api_calendar_month():
     act = repos.daily_activity(u['id'], str(start_d), str(end_d), get_today_local())
     return jsonify({'success': True, 'activity': act})
 
+@app.route('/api/calendar/day', methods=['GET'])
 @app.route('/api/calendar/day.php', methods=['GET'])
 def api_calendar_day():
     u = require_login()
@@ -781,29 +849,181 @@ def api_calendar_day():
     return jsonify({'success': True, 'habits': items, 'date': d_str})
 
 # Analytics API
+@app.route('/api/analytics/data', methods=['GET'])
 @app.route('/api/analytics/data.php', methods=['GET'])
 def api_analytics_data():
     u = require_login()
-    days_back = int(request.args.get('days', 30))
-    t_date = habit_logic.parse_date(get_today_local())
-    from_date = str(t_date - timedelta(days=days_back))
-    to_date = str(t_date)
+    today_str = get_today_local()
+    t_date = habit_logic.parse_date(today_str)
 
-    daily = repos.daily_activity(u['id'], from_date, to_date, str(t_date))
+    req_to = request.args.get('to')
+    req_from = request.args.get('from')
+
+    if req_to:
+        to_date = req_to
+    else:
+        to_date = today_str
+
+    if to_date > today_str:
+        to_date = today_str
+
+    if req_from:
+        from_date = req_from
+    else:
+        days_back = int(request.args.get('days', 30))
+        from_date = str(t_date - timedelta(days=days_back - 1))
+
+    if from_date > to_date:
+        from_date = to_date
+
+    # 1. Fetch daily series including 6 days prior to calculate rolling 7-day trend
+    pre_from_d = habit_logic.parse_date(from_date) - timedelta(days=6)
+    pre_from_date = str(pre_from_d)
+
+    series = repos.daily_activity(u['id'], pre_from_date, to_date, today_str)
+
+    # Helper for percent calculation
+    def calc_pct(comp, sched):
+        return int(round(comp / sched * 100)) if sched > 0 else None
+
+    dates = sorted(list(series.keys()))
+    daily_res = {'labels': [], 'values': [], 'completed': [], 'scheduled': []}
+    trend_res = {'labels': [], 'values': []}
+    weekly_map = {}
+    monthly_map = {}
+    tot_c = 0
+    tot_s = 0
+    best_day = None
+
+    for i, d in enumerate(dates):
+        if d < from_date:
+            continue
+        v = series[d]
+        c = v['completed']
+        s = v['scheduled']
+        p = calc_pct(c, s)
+
+        daily_res['labels'].append(d)
+        daily_res['values'].append(p)
+        daily_res['completed'].append(c)
+        daily_res['scheduled'].append(s)
+
+        # 7-day rolling window for consistency trend
+        c7 = 0
+        s7 = 0
+        window_start_idx = max(0, i - 6)
+        for j in range(window_start_idx, i + 1):
+            prev_d = dates[j]
+            c7 += series[prev_d]['completed']
+            s7 += series[prev_d]['scheduled']
+        trend_res['labels'].append(d)
+        trend_res['values'].append(calc_pct(c7, s7))
+
+        # Weekly aggregation (ISO Monday start)
+        d_obj = habit_logic.parse_date(d)
+        ws_str = habit_logic.format_date(habit_logic.hl_week_start(d_obj))
+        if ws_str not in weekly_map:
+            weekly_map[ws_str] = {'c': 0, 's': 0}
+        weekly_map[ws_str]['c'] += c
+        weekly_map[ws_str]['s'] += s
+
+        # Monthly aggregation (YYYY-MM)
+        mo_str = d[:7]
+        if mo_str not in monthly_map:
+            monthly_map[mo_str] = {'c': 0, 's': 0}
+        monthly_map[mo_str]['c'] += c
+        monthly_map[mo_str]['s'] += s
+
+        tot_c += c
+        tot_s += s
+        if p is not None and (best_day is None or p > best_day['percent']):
+            best_day = {'date': d, 'percent': p}
+
+    weekly_res = {'labels': [], 'values': []}
+    for ws in sorted(weekly_map.keys()):
+        ws_d = habit_logic.parse_date(ws)
+        weekly_res['labels'].append(f"Week of {ws_d.strftime('%-d %b') if hasattr(ws_d, 'strftime') else ws}")
+        weekly_res['values'].append(calc_pct(weekly_map[ws]['c'], weekly_map[ws]['s']))
+
+    # Format weekly labels safely across platforms (Windows strftime %#d vs %-d)
+    for idx, ws in enumerate(sorted(weekly_map.keys())):
+        ws_d = habit_logic.parse_date(ws)
+        day_num = ws_d.day
+        month_abbr = ws_d.strftime('%b')
+        weekly_res['labels'][idx] = f"Week of {day_num} {month_abbr}"
+
+    monthly_res = {'labels': [], 'values': []}
+    for mo in sorted(monthly_map.keys()):
+        mo_d = habit_logic.parse_date(mo + '-01')
+        monthly_res['labels'].append(mo_d.strftime('%b %Y'))
+        monthly_res['values'].append(calc_pct(monthly_map[mo]['c'], monthly_map[mo]['s']))
+
+    # 2. Habit performance
     habits = db.execute_query(
-        "SELECT id, name, color, status, start_date, schedule_type, weekly_target FROM habits WHERE user_id = %s",
+        "SELECT * FROM habits WHERE user_id = %s AND status <> 'archived' ORDER BY name",
         (u['id'],), fetch_all=True
     ) or []
-    enriched_habits = repos.enrich_habits(u['id'], habits, str(t_date))
+    h_ids = [h['id'] for h in habits]
+    wd_map = repos.habit_weekdays_map(h_ids)
+    logs_map = repos.habit_logs_map(u['id'], h_ids)
+    hab_list = []
+    for h in habits:
+        hid = h['id']
+        r = habit_logic.hl_range_stats(
+            h, wd_map.get(hid, []), logs_map.get(hid, set()),
+            today_str, from_date, to_date
+        )
+        if r['rate'] is not None:
+            hab_list.append({
+                'name': h['name'],
+                'color': h['color'],
+                'rate': r['rate'],
+                'done': r['done'],
+                'missed': r['missed']
+            })
+    hab_list.sort(key=lambda x: x['rate'], reverse=True)
+
+    # 3. Goal progress
+    goals = db.execute_query(
+        "SELECT * FROM goals WHERE user_id = %s AND status <> 'paused' ORDER BY (status = 'completed') ASC, deadline ASC LIMIT 12",
+        (u['id'],), fetch_all=True
+    ) or []
+    enriched_goals = repos.enrich_goals(u['id'], goals, today_str)
+    goals_list = []
+    for g in enriched_goals:
+        goals_list.append({
+            'title': g['title'],
+            'percent': g['percent'],
+            'status': g['display_status'],
+            'current': float(g['current_value'] or 0),
+            'target': float(g['target_value'] or 0),
+            'unit': g['unit']
+        })
+
+    # 4. Summary & streaks
+    streaks = repos.overall_streaks(u['id'], today_str)
+    summary = {
+        'percent': calc_pct(tot_c, tot_s),
+        'completed': tot_c,
+        'scheduled': tot_s,
+        'best_day': best_day,
+        'streaks': streaks
+    }
 
     return jsonify({
         'success': True,
-        'daily': daily,
-        'habits': enriched_habits,
-        'streaks': repos.overall_streaks(u['id'], str(t_date))
+        'range': {'from': from_date, 'to': to_date},
+        'summary': summary,
+        'daily': daily_res,
+        'weekly': weekly_res,
+        'monthly': monthly_res,
+        'trend': trend_res,
+        'habits': hab_list,
+        'goals': goals_list
     })
 
 # Notifications API
+@app.route('/api/notifications/list', methods=['GET'])
 @app.route('/api/notifications/list.php', methods=['GET'])
 def api_notifications_list():
     u = require_login()
@@ -813,6 +1033,7 @@ def api_notifications_list():
     ) or []
     return jsonify({'success': True, 'notifications': notifs})
 
+@app.route('/api/notifications/read', methods=['POST'])
 @app.route('/api/notifications/read.php', methods=['POST'])
 def api_notifications_read():
     u = require_login()
@@ -824,6 +1045,7 @@ def api_notifications_read():
         db.execute_query("UPDATE notifications SET is_read = TRUE WHERE user_id = %s", (u['id'],), commit=True)
     return jsonify({'success': True})
 
+@app.route('/api/notifications/delete', methods=['POST'])
 @app.route('/api/notifications/delete.php', methods=['POST'])
 def api_notifications_delete():
     u = require_login()
@@ -831,6 +1053,7 @@ def api_notifications_delete():
     return jsonify({'success': True})
 
 # Profile & Settings API
+@app.route('/api/profile/update', methods=['POST'])
 @app.route('/api/profile/update.php', methods=['POST'])
 def api_profile_update():
     u = require_login()
@@ -844,6 +1067,7 @@ def api_profile_update():
     session['user_name'] = name
     return jsonify({'success': True, 'message': 'Profile updated successfully.'})
 
+@app.route('/api/profile/password', methods=['POST'])
 @app.route('/api/profile/password.php', methods=['POST'])
 def api_profile_password():
     u = require_login()
@@ -866,6 +1090,40 @@ def api_profile_password():
     db.execute_query("UPDATE users SET password_hash = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s", (new_hash, u['id']), commit=True)
     return jsonify({'success': True, 'message': 'Password updated successfully.'})
 
+@app.route('/api/profile/delete', methods=['POST'])
+@app.route('/api/profile/delete.php', methods=['POST'])
+def api_profile_delete():
+    u = require_login()
+    if u['role'] == 'admin':
+        return jsonify({'success': False, 'message': 'Administrator accounts cannot be deleted here.'}), 403
+    if u['role'] == 'guest':
+        return jsonify({'success': False, 'message': 'Guest mode cannot delete account.'}), 403
+    data = get_req_data()
+    pwd = data.get('password', '')
+    user_row = db.execute_query("SELECT password_hash FROM users WHERE id = %s", (u['id'],), fetch_one=True)
+    if not user_row or not check_password_hash(user_row['password_hash'], pwd):
+        return jsonify({'success': False, 'message': 'Password is incorrect.', 'errors': {'password': 'Password is incorrect.'}}), 422
+    db.execute_query("DELETE FROM users WHERE id = %s", (u['id'],), commit=True)
+    session.clear()
+    return jsonify({'success': True, 'redirect': '/', 'message': 'Account deleted.'})
+
+
+@app.route('/api/settings/theme', methods=['POST'])
+@app.route('/api/settings/theme.php', methods=['POST'])
+def api_settings_theme():
+    u = require_login()
+    data = get_req_data()
+    theme = 'dark' if data.get('theme') == 'dark' else 'light'
+    session['theme'] = theme
+    db.execute_query(
+        """INSERT INTO user_settings (user_id, theme, updated_at)
+           VALUES (%s, %s, CURRENT_TIMESTAMP)
+           ON CONFLICT (user_id) DO UPDATE SET theme = EXCLUDED.theme, updated_at = CURRENT_TIMESTAMP""",
+        (u['id'], theme), commit=True
+    )
+    return jsonify({'success': True, 'theme': theme})
+
+@app.route('/api/settings/save', methods=['POST'])
 @app.route('/api/settings/save.php', methods=['POST'])
 def api_settings_save():
     u = require_login()
@@ -887,6 +1145,7 @@ def api_settings_save():
     return jsonify({'success': True, 'message': 'Settings saved successfully.'})
 
 # Admin APIs
+@app.route('/api/admin/users', methods=['GET'])
 @app.route('/api/admin/users.php', methods=['GET'])
 def api_admin_users():
     require_admin()
@@ -944,6 +1203,7 @@ def api_admin_users():
         'pages': max(1, (total + per_page - 1) // per_page)
     })
 
+@app.route('/api/admin/user_status', methods=['POST'])
 @app.route('/api/admin/user_status.php', methods=['POST'])
 def api_admin_user_status():
     admin = require_admin()

@@ -5,7 +5,7 @@
   /* ----- Detail page: backfill buttons ----- */
   document.querySelectorAll('.js-toggle-day').forEach(btn => btn.addEventListener('click', async () => {
     btn.disabled = true;
-    const { ok, data } = await TMH.api('habits/toggle.php', { habit_id: +btn.dataset.id, date: btn.dataset.date, completed: btn.dataset.done !== '1' });
+    const { ok, data } = await TMH.api('habits/toggle', { habit_id: +btn.dataset.id, date: btn.dataset.date, completed: btn.dataset.done !== '1' });
     if (ok) location.reload(); else { TMH.toast(data.message, 'error'); btn.disabled = false; }
   }));
 
@@ -15,7 +15,7 @@
   /* ----- Load + render ----- */
   async function load() {
     const qs = new URLSearchParams({ q: $('#f-q').value, category_id: $('#f-cat').value, status: $('#f-status').value });
-    const { ok, data } = await TMH.api('habits/list.php?' + qs, null, 'GET');
+    const { ok, data } = await TMH.api('habits/list?' + qs, null, 'GET');
     if (!ok) { list.innerHTML = `<div class="empty">${TMH.esc(data.message || 'Could not load habits.')}</div>`; return; }
     if (!data.habits.length) {
       const filtered = $('#f-q').value || $('#f-cat').value !== '0' || $('#f-status').value !== 'all';
@@ -41,7 +41,7 @@
          <button class="btn btn-sm" data-act="status" data-status="archived" data-id="${h.id}">Archive</button>`;
     return `<div class="card habit-card ${h.status !== 'active' ? 'inactive' : ''}">
       <div class="row"><span class="hicon" style="background:${TMH.esc(h.color)}"><i data-lucide="${TMH.esc(h.icon)}"></i></span>
-        <div><a class="name" href="${TMH.base}/modules/habits/detail.php?id=${h.id}">${TMH.esc(h.name)}</a>
+        <div><span class="name font-bold">${TMH.esc(h.name)}</span>
         <div class="muted small">${TMH.esc(h.schedule_label)}${wk}</div></div></div>
       <div class="meta"><span class="badge badge-primary">${TMH.esc(h.category_name)}</span>
         <span class="badge">🔥 ${s.current_streak}${unit} streak</span><span class="badge">Best ${s.longest_streak}${unit}</span><span class="badge">${rate}</span>
@@ -56,23 +56,23 @@
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const id = +b.dataset.id, act = b.dataset.act; b.disabled = true;
     if (act === 'done' || act === 'undo') {
-      const r = await TMH.api('habits/toggle.php', { habit_id: id, completed: act === 'done' });
+      const r = await TMH.api('habits/toggle', { habit_id: id, completed: act === 'done' });
       if (!r.ok) TMH.toast(r.data.message, 'error'); else TMH.toast(act === 'done' ? 'Nice work! Habit completed.' : 'Completion removed.');
       return load();
     }
     if (act === 'status') {
-      const r = await TMH.api('habits/status.php', { id, status: b.dataset.status });
+      const r = await TMH.api('habits/status', { id, status: b.dataset.status });
       TMH.toast(r.data.message, r.ok ? '' : 'error'); return load();
     }
     if (act === 'delete') {
       b.disabled = false;
       if (!confirm('Delete this habit and ALL its history? This cannot be undone. (Tip: Archive keeps the history.)')) return;
-      const r = await TMH.api('habits/delete.php', { id }); TMH.toast(r.data.message, r.ok ? '' : 'error'); return load();
+      const r = await TMH.api('habits/delete', { id }); TMH.toast(r.data.message, r.ok ? '' : 'error'); return load();
     }
     if (act === 'edit') {
       b.disabled = false;
       const qs = new URLSearchParams({ status: 'archived' });
-      const all = [...(await TMH.api('habits/list.php?status=all', null, 'GET')).data.habits || [], ...(await TMH.api('habits/list.php?' + qs, null, 'GET')).data.habits || []];
+      const all = [...(await TMH.api('habits/list?status=all', null, 'GET')).data.habits || [], ...(await TMH.api('habits/list?' + qs, null, 'GET')).data.habits || []];
       const h = all.find(x => x.id == id); if (h) openForm(h);
     }
   });
@@ -109,7 +109,7 @@
       weekdays: [...form.querySelectorAll('input[name=weekdays]:checked')].map(c => +c.value),
       weekly_target: form.weekly_target.value, reminder_time: form.reminder_time.value,
     };
-    const { ok, data } = await TMH.api('habits/save.php', body); btn.disabled = false;
+    const { ok, data } = await TMH.api('habits/save', body); btn.disabled = false;
     if (ok) { dlg.close(); TMH.toast(data.message); load(); }
     else { TMH.showErrors(form, data.errors); const a = form.querySelector('.alert'); a.textContent = data.message; a.hidden = false; }
   });

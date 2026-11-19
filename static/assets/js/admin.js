@@ -11,7 +11,7 @@
   const body = document.getElementById('users'); if (!body) return;
   const $ = s => document.querySelector(s); let page = 1, pages = 1;
   async function load() {
-    const { ok, data } = await TMH.api(`admin/users.php?q=${encodeURIComponent($('#q').value)}&page=${page}`, null, 'GET');
+    const { ok, data } = await TMH.api(`admin/users?q=${encodeURIComponent($('#q').value)}&page=${page}`, null, 'GET');
     if (!ok) { body.innerHTML = `<tr><td colspan="9" class="empty">${TMH.esc(data.message || 'Error')}</td></tr>`; return; }
     pages = data.pages; $('#count').textContent = `${data.total} user(s)`; $('#page').textContent = `Page ${data.page} of ${data.pages}`;
     $('#prev').disabled = page <= 1; $('#next').disabled = page >= pages;
@@ -25,7 +25,7 @@
   body.addEventListener('click', async e => {
     const b = e.target.closest('button[data-id]'); if (!b) return;
     if (b.dataset.active === '0' && !confirm('Deactivate this account? The user will be unable to log in.')) return;
-    b.disabled = true; const r = await TMH.api('admin/user_status.php', { id: +b.dataset.id, is_active: +b.dataset.active });
+    b.disabled = true; const r = await TMH.api('admin/user_status', { id: +b.dataset.id, is_active: +b.dataset.active });
     TMH.toast(r.data.message, r.ok ? '' : 'error'); load();
   });
   let t; $('#q').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { page = 1; load(); }, 300); });

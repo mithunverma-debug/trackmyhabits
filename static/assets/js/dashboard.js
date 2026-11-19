@@ -1,7 +1,7 @@
 /* Dashboard: checklist toggles + weekly chart (data comes from the server, from MySQL). */
 document.querySelectorAll('.js-check').forEach(btn => btn.addEventListener('click', async () => {
   btn.disabled = true;
-  const { ok, data } = await TMH.api('habits/toggle.php', { habit_id: +btn.dataset.id, completed: btn.dataset.done !== '1' });
+  const { ok, data } = await TMH.api('habits/toggle', { habit_id: +btn.dataset.id, completed: btn.dataset.done !== '1' });
   if (ok) location.reload(); else { TMH.toast(data.message, 'error'); btn.disabled = false; }
 }));
 
